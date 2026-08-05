@@ -631,7 +631,8 @@ def main():
         if not args.url and not args.file and not args.update: parser.print_help()
     except KeyboardInterrupt:
         print(f"\n\n  {Fore.YELLOW}[!] Interrupted{Style.RESET_ALL}\n")
-        sys.exit(130)
+        sys.stderr = open(os.devnull, "w")
+        os._exit(130)
 
 if __name__ == "__main__":
     main()
