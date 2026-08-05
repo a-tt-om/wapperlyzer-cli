@@ -455,11 +455,10 @@ def collect_playwright(url, engine):
 
 def collect_requests(url):
     import requests as req
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     from bs4 import BeautifulSoup
     pd = PageData(url=url)
-    if "." in url and "http" not in url:
-        try: url = req.head("http://" + url, allow_redirects=True, timeout=10).url
-        except Exception: url = "http://" + url
     resp = req.get(url, verify=False, timeout=15)
     pd.url, pd.html = resp.url, resp.text
     pd.headers = {k.lower(): v for k, v in resp.headers.items()}
@@ -594,26 +593,45 @@ def main():
     engine = WappalyzerEngine(TECHNOLOGIES_FILE)
     mode = f"{Fore.GREEN}browser{Style.RESET_ALL}" if use_pw else f"{Fore.YELLOW}HTTP-only{Style.RESET_ALL}"
 
+    def _normalize_url(url):
+        if url.startswith(("http://", "https://")):
+            return url, False
+        return "https://" + url, True
+
     def scan(url):
+        url, auto_scheme = _normalize_url(url)
         print(f"  {Fore.CYAN}[~] Scanning{Style.RESET_ALL} {Fore.WHITE}{url}{Style.RESET_ALL} [{mode}]", end="", flush=True)
         try:
             pd = collect_playwright(url, engine) if use_pw else collect_requests(url)
-        except Exception as e:
-            print(f"\r  {Fore.RED}{Style.BRIGHT}[✗] Error:{Style.RESET_ALL} {url}: {e}")
-            return
+        except Exception:
+            if auto_scheme:
+                http_url = "http://" + url.removeprefix("https://")
+                print(f"\r  {Fore.YELLOW}[~] HTTPS failed, trying HTTP...{Style.RESET_ALL}" + " " * 30, end="", flush=True)
+                try:
+                    pd = collect_playwright(http_url, engine) if use_pw else collect_requests(http_url)
+                except Exception as e:
+                    print(f"\r  {Fore.RED}{Style.BRIGHT}[✗] Failed:{Style.RESET_ALL} {url} — {e}" + " " * 30)
+                    return
+            else:
+                print(f"\r  {Fore.RED}{Style.BRIGHT}[✗] Failed:{Style.RESET_ALL} {url}" + " " * 30)
+                return
         results = engine.analyze(pd)
         print(f"\r  {Fore.GREEN}{Style.BRIGHT}[✓] Scanned{Style.RESET_ALL} {Fore.WHITE}{url}{Style.RESET_ALL} — {len(results)} technologies found" + " " * 20)
         print_results(pd.url, results, args.writefile)
 
-    if args.file:
-        with open(args.file) as f:
-            urls = [line.strip() for line in f if line.strip()]
-        print(f"  {Fore.WHITE}{Style.BRIGHT}Loaded {len(urls)} targets{Style.RESET_ALL}\n")
-        for i, url in enumerate(urls, 1):
-            print(f"  {Fore.CYAN}[{i}/{len(urls)}]{Style.RESET_ALL}", end=" ")
-            scan(url)
-    if args.url: scan(args.url)
-    if not args.url and not args.file and not args.update: parser.print_help()
+    try:
+        if args.file:
+            with open(args.file) as f:
+                urls = [line.strip() for line in f if line.strip()]
+            print(f"  {Fore.WHITE}{Style.BRIGHT}Loaded {len(urls)} targets{Style.RESET_ALL}\n")
+            for i, url in enumerate(urls, 1):
+                print(f"  {Fore.CYAN}[{i}/{len(urls)}]{Style.RESET_ALL}", end=" ")
+                scan(url)
+        if args.url: scan(args.url)
+        if not args.url and not args.file and not args.update: parser.print_help()
+    except KeyboardInterrupt:
+        print(f"\n\n  {Fore.YELLOW}[!] Interrupted{Style.RESET_ALL}\n")
+        sys.exit(130)
 
 if __name__ == "__main__":
     main()
