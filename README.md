@@ -14,7 +14,7 @@ Or with pip:
 
 ```bash
 git clone https://github.com/a-tt-om/wapperlyzer-cli
-cd wapper-cli
+cd wapperlyzer-cli
 pip install .
 ```
 
