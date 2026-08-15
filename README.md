@@ -7,13 +7,13 @@ Detect web technologies from the command line. Uses a headless browser (Playwrig
 ## Install
 
 ```bash
-pipx install git+https://github.com/user/wapper-cli.git
+pipx install git+https://github.com/a-tt-om/wapperlyzer-cli.git
 ```
 
 Or with pip:
 
 ```bash
-git clone https://github.com/user/wapper-cli.git
+git clone https://github.com/a-tt-om/wapperlyzer-cli
 cd wapper-cli
 pip install .
 ```
